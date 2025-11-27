@@ -1,0 +1,294 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+
+        <!-- Bootstrap CSS -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+            integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+        <link rel="stylesheet" href="{% static 'shop/style.css' %}">
+    </head>
+
+    <body>
+
+        <div class="container">
+
+            <div class="row">
+                <div class="col-md-12">
+
+                    <!-- NAVBAR -->
+                    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                        <a class="navbar-brand" href="#">Navbar</a>
+
+                        <button class="navbar-toggler" type="button" data-toggle="collapse"
+                            data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false"
+                            aria-label="Toggle navigation">
+                            <span class="navbar-toggler-icon"></span>
+                        </button>
+
+                        <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+                            <div class="navbar-nav">
+                                <a class="nav-item nav-link active" href="#">Home</a>
+                                <a class="nav-item nav-link" href="#">Features</a>
+                                <button id="cart" data-html="true" type="button" class="btn btn-secondary"
+                                    data-container="body" data-toggle="popover" data-placement="bottom"
+                                    data-content="Cart is empty">
+                                    cart(0)
+                                </button>
+                                <a class="nav-item nav-link disabled" href="#">Disabled</a>
+                            </div>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card card-sm">
+                        <form class="card-body row no-gutters align-items-center">
+                            <div class="col">
+                                <input type="search" name="item_name" placeholder="Search for products"
+                                    class="form-control form-control-borderless">
+                            </div>
+                            <div class="col-auto">
+                                <button class="btn btn-success ml-2">Search</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product cards -->
+            <div class="row">
+                {% for product in products_objects %}
+                <div class="col-md-3 mt-2">
+                    <div class="card">
+                        <img src="{{ product.image }}" alt="" class="card-img-top">
+
+                        <div class="card-body">
+                            <div id="nm{{ product.id }}" class="card-title">{{ product.title }}</div>
+                            <div id="price{{ product.id }}" class="card-text">$ {{ product.price }}</div>
+
+                            <a href="{{ product.id }}" class="btn btn-warning">View</a>
+                            <button id="{{ product.id }}" class="btn atc btn-warning">
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            <div class="row">
+                <div class="col-md-3 offset-md-4">
+                    <ul class="pagination">
+                        {% if products_objects.has_previous %}
+                        <li class="page-item">
+                            <a href="?page={{ products_objects.previous_page_number }}" class="page-link">Previous</a>
+                        </li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <a href="?page={{ products_objects.number }}" class="page-link">
+                                {{ products_objects.number }}
+                            </a>
+                        </li>
+
+                        {% if products_objects.has_next %}
+                        <li class="page-item">
+                            <a href="?page={{ products_objects.next_page_number }}" class="page-link">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- jQuery FIRST -->
+        <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+            integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+            crossorigin="anonymous"></script>
+
+        <!-- Popper SECOND -->
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js"
+            integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+            crossorigin="anonymous"></script>
+
+        <!-- Bootstrap JS LAST -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js"
+            integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+            crossorigin="anonymous"></script>
+
+        <!-- Custom Script -->
+        <script type="text/javascript">
+            // cart format (new):
+            // cart[id] = [quantity, name, price]
+
+            let cart = {};
+
+            // Load cart from localStorage
+            if (localStorage.getItem("cart") === null) {
+                cart = {};
+            } else {
+                try {
+                    cart = JSON.parse(localStorage.getItem("cart")) || {};
+                    console.log("Loaded cart:", cart);
+                } catch (e) {
+                    cart = {};
+                }
+            }
+
+            // Update cart button text
+            function updateCartButton() {
+                document.getElementById("cart").innerHTML =
+                    "cart(" + Object.keys(cart).length + ")";
+            }
+
+            // Render cart inside popover
+            function DisplayCart() {
+                let cartString = "<h6>Cart</h6>";
+                let cartIndex = 1;
+                let grandTotal = 0;
+
+                for (let id in cart) {
+                    let entry = cart[id];
+
+                    let qty, name, price;
+
+                    // Support multiple formats:
+                    // - old: cart[id] = 2
+                    // - mid: cart[id] = [2, "Name"]
+                    // - new: cart[id] = [2, "Name", 100]
+                    if (Array.isArray(entry)) {
+                        qty = entry[0];
+                        name = entry[1];
+                        price = entry[2];
+
+                        // If name missing, try DOM
+                        if (!name) {
+                            const nameEl = document.getElementById("nm" + id);
+                            if (nameEl) {
+                                name = nameEl.innerText;
+                                entry[1] = name;
+                            }
+                        }
+
+                        // If price missing, try DOM
+                        if (price == null || isNaN(price)) {
+                            const priceEl = document.getElementById("price" + id);
+                            if (priceEl) {
+                                const priceText = priceEl.innerText.replace("$", "").trim();
+                                price = parseFloat(priceText) || 0;
+                            } else {
+                                price = 0;
+                            }
+                            entry[2] = price;
+                        }
+
+                    } else {
+                        // Old numeric-only format
+                        qty = entry;
+
+                        const nameEl = document.getElementById("nm" + id);
+                        const priceEl = document.getElementById("price" + id);
+
+                        name = nameEl ? nameEl.innerText : "Item " + id;
+
+                        let parsedPrice = 0;
+                        if (priceEl) {
+                            const priceText = priceEl.innerText.replace("$", "").trim();
+                            parsedPrice = parseFloat(priceText) || 0;
+                        }
+
+                        price = parsedPrice;
+
+                        // Normalize to new format
+                        cart[id] = [qty, name, price];
+                        entry = cart[id];
+                    }
+
+                    const lineTotal = qty * price;
+                    grandTotal += lineTotal;
+
+                    cartString +=
+                        cartIndex +
+                        ". " +
+                        name +
+                        " - Qty: " +
+                        qty +
+                        " - Price: $" +
+                        price.toFixed(2) +
+                        " - Total: $" +
+                        lineTotal.toFixed(2) +
+                        "<br>";
+
+                    cartIndex++;
+                }
+
+                if (cartIndex === 1) {
+                    cartString += "Your cart is empty.<br>";
+                }
+
+                cartString += "<hr><strong>Grand Total: $" + grandTotal.toFixed(2) + "</strong><br>";
+                cartString += "<a href='/checkout'><button class='btn btn-primary mt-2'>Checkout</button></a>";
+
+                document
+                    .getElementById("cart")
+                    .setAttribute("data-content", cartString);
+
+                // Initialize / re-init popover
+                $("#cart").popover({
+                    container: "body",
+                    html: true,
+                    trigger: "focus",
+                });
+            }
+
+            // Click handler for Add to Cart
+            $(document).on("click", ".atc", function () {
+                const item_id = this.id.toString();
+
+                const nameEl = document.getElementById("nm" + item_id);
+                const priceEl = document.getElementById("price" + item_id);
+
+                if (!nameEl || !priceEl) return;
+
+                const name = nameEl.innerText;
+                const priceText = priceEl.innerText.replace("$", "").trim();
+                const price = parseFloat(priceText) || 0;
+
+                let qty = 1;
+
+                if (cart[item_id] !== undefined) {
+                    if (Array.isArray(cart[item_id])) {
+                        qty = cart[item_id][0] + 1;
+                    } else {
+                        qty = cart[item_id] + 1;
+                    }
+                }
+
+                // Store as [qty, name, price]
+                cart[item_id] = [qty, name, price];
+
+                localStorage.setItem("cart", JSON.stringify(cart));
+
+                updateCartButton();
+                DisplayCart(); // re-render popover after each add
+            });
+
+            // On first load
+            updateCartButton();
+            DisplayCart();
+        </script>
+
+    </body>
+
+</html>
